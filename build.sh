@@ -5,46 +5,66 @@ cd $top_dir
 
 . ./config.bashrc
 
-read_xml="${top_dir}/read_xml.py"
 source_dir="${top_dir}/sources"
 
-db()
+help()
 {
-	mkdir -p db
-	cd db
-	find ${source_dir}/${project}-${tar_ver}/sample/ -name "*.arxml" -print -exec python3 ${read_xml} -o v${tar_ver}.log -d v${tar_ver}.db {} \;
-	find ${source_dir}/${project}-${ref_ver}/sample/ -name "*.arxml" -print -exec python3 ${read_xml} -o v${ref_ver}.log -d v${ref_ver}.db {} \;
-	sqlite3 v${ref_ver}.db ".dump" > v${ref_ver}.sql
-	sqlite3 v${tar_ver}.db ".dump" > v${tar_ver}.sql
-	cd ${top_dir}
+  echo "usage : $0 [target]"
+  cat - << EOS
+
+target :
+  extract         extract source from archives
+  yaml            extract data from xml and save yaml
+  db              create database from yaml
+
+  clean           remove generated files
+EOS
+}
+
+extract()
+{
+  cd ${source_dir}
+  sh extract.sh
+  cd ${top_dir}
 }
 
 compare()
 {
-	python3 compare.py -o output.txt db/v${tar_ver}.db db/v${ref_ver}.db
+  python3 compare.py -o output.txt db/v${tar_ver}.db db/v${ref_ver}.db
 }
 
 yaml()
 {
-  python3 xml2yml.py -o output.yml sources/${project}-${ref_ver}/sample/sample1.${ext}
+  echo "INFO : yaml"
+  cmd="python3 xml2yml.py -o ref.yml"
+  cmd="$cmd --long-definition-ref"
+  cmd="$cmd sources/${project}-${ref_ver}/sample/sample1.${ext}"
+
+  echo $cmd
+  $cmd
 }
+
+db()
+{
+  echo "INFO : db"
+  cmd="python3 yml2db.py -o ref.db ref.yml"
+  echo $cmd
+  $cmd
+
+  sqlite3 ref.db ".dump" > ref.sql
+}
+
 
 clean()
 {
-  rm -f database.db
-  rm -f database.sql
-  rm -f input.xml
-  rm -f output.txt
-  rm -f output.yml
-  rm -f output.yml.ref
-  rm -f sample1-ref.yml
+  rm -f ref.db ref.yml ref.log ref.sql
 }
 
 all()
 {
-  db
-  compare
+  extract
   yaml
+  db
 }
 
 args=""
